@@ -105,7 +105,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 //                            circle.setFillColor(Color.argb(700, 86, 111, 251));
 //                            circle.setStrokeWidth(0);
                         }
-                        addHeatMap(pozicijeExpert);
+//                        addHeatMap(pozicijeExpert);
                         LatLngBounds bounds = builder.build();
                         int mapPadding = (int) (mapFragment.getView().getWidth() * (initialZoomPaddingPercent / 100.0));
                         currentMap.moveCamera(CameraUpdateFactory.newLatLngBounds(bounds, mapPadding));
@@ -252,55 +252,83 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         pinRadiusCircle.setStrokeWidth(2);
         pinRadiusCircle.setStrokeColor(Color.argb(50, 26, 41, 240));
 
-//        for (ParkingMesto mesto : mesta) {
-//            Location ne = new Location("point A");
-//            ne.setLatitude(mesto.oblast.northeast.latitude);
-//            ne.setLongitude(mesto.oblast.northeast.longitude);
-//            Location sw = new Location("point B");
-//            sw.setLatitude(mesto.oblast.southwest.latitude);
-//            sw.setLongitude(mesto.oblast.southwest.longitude);
-//            pozicijeExpert.add(new WeightedLatLng(mesto.pozicija, ne.distanceTo(sw)));
-////                            circleOptions.radius(ne.distanceTo(sw) / 2);
-//        }
+        Location ownLocation = new Location("point A");
+        ownLocation.setLatitude(latestLocation.latitude);
+        ownLocation.setLongitude(latestLocation.longitude);
+
+        List<Marker> markersToRemove = new ArrayList<>();
+
+        for (Marker existing : trenutnoVidljiviMarkeri) {
+            Location markerLocation = new Location("point B");
+            markerLocation.setLatitude(existing.getPosition().latitude);
+            markerLocation.setLongitude(existing.getPosition().longitude);
+            if (ownLocation.distanceTo(markerLocation)>circleRadius){
+                existing.remove();
+                markersToRemove.add(existing);
+            }
+        }
+
+        for (Marker existing : markersToRemove) {
+            trenutnoVidljiviMarkeri.add(existing);
+        }
+
+        for (ParkingMesto mesto : mesta) {
+            Location pinLocation = new Location("point B");
+            pinLocation.setLatitude(mesto.pozicija.latitude);
+            pinLocation.setLongitude(mesto.pozicija.longitude);
+
+            if (ownLocation.distanceTo(pinLocation)<circleRadius){
+                boolean foundSame = false;
+                for (Marker existing : trenutnoVidljiviMarkeri) {
+                    if (existing.getPosition() == mesto.pozicija) {
+                        foundSame = true;
+                        break;
+                    }
+                }
+                if (foundSame) continue;
+                Marker selectedPin = currentMap.addMarker(new MarkerOptions().position(mesto.pozicija).title(mesto.naziv));
+                trenutnoVidljiviMarkeri.add(selectedPin);
+            }
+        }
     }
 
     @Override
     public void onCameraIdle() {
-        trenutnoVidljivaMesta = new ArrayList<ParkingMesto>();
-        List<WeightedLatLng> pozicijeExpert = new ArrayList<WeightedLatLng>();
-        LatLngBounds currentBounds = currentMap.getProjection().getVisibleRegion().latLngBounds;
-        float zoomLvl = currentMap.getCameraPosition().zoom;
-        for (ParkingMesto mesto : mesta) {
-            if (currentBounds.contains(mesto.pozicija)) {
-                trenutnoVidljivaMesta.add(mesto);
-                if (zoomLvl >= 16) {
-                    trenutnoVidljiviMarkeri.add(currentMap.addMarker(new MarkerOptions().position(mesto.pozicija).title(mesto.naziv)));
-                } else {
-                    Location ne = new Location("point A");
-                    ne.setLatitude(mesto.oblast.northeast.latitude);
-                    ne.setLongitude(mesto.oblast.northeast.longitude);
-                    Location sw = new Location("point B");
-                    sw.setLatitude(mesto.oblast.southwest.latitude);
-                    sw.setLongitude(mesto.oblast.southwest.longitude);
-                    pozicijeExpert.add(new WeightedLatLng(mesto.pozicija, ne.distanceTo(sw)));
-                }
-            }
-        }
-        if (zoomLvl >= 16) {
-            heatmapOverlay.remove();
-        } else {
-            if (trenutnoVidljiviMarkeri.size() > 0) {
-                heatmapOverlay.clearTileCache();
-                addHeatMap(pozicijeExpert);
-                for (Marker mark : trenutnoVidljiviMarkeri) {
-                    mark.remove();
-                }
-                trenutnoVidljiviMarkeri.clear();
-            } else {
-                if (pozicijeExpert.size() == 0) return;
-                heatmapProvider.setWeightedData(pozicijeExpert);
-                heatmapOverlay.clearTileCache();
-            }
-        }
+//        trenutnoVidljivaMesta = new ArrayList<ParkingMesto>();
+//        List<WeightedLatLng> pozicijeExpert = new ArrayList<WeightedLatLng>();
+//        LatLngBounds currentBounds = currentMap.getProjection().getVisibleRegion().latLngBounds;
+//        float zoomLvl = currentMap.getCameraPosition().zoom;
+//        for (ParkingMesto mesto : mesta) {
+//            if (currentBounds.contains(mesto.pozicija)) {
+//                trenutnoVidljivaMesta.add(mesto);
+//                if (zoomLvl >= 16) {
+//                    trenutnoVidljiviMarkeri.add(currentMap.addMarker(new MarkerOptions().position(mesto.pozicija).title(mesto.naziv)));
+//                } else {
+//                    Location ne = new Location("point A");
+//                    ne.setLatitude(mesto.oblast.northeast.latitude);
+//                    ne.setLongitude(mesto.oblast.northeast.longitude);
+//                    Location sw = new Location("point B");
+//                    sw.setLatitude(mesto.oblast.southwest.latitude);
+//                    sw.setLongitude(mesto.oblast.southwest.longitude);
+//                    pozicijeExpert.add(new WeightedLatLng(mesto.pozicija, ne.distanceTo(sw)));
+//                }
+//            }
+//        }
+//        if (zoomLvl >= 16) {
+//            heatmapOverlay.remove();
+//        } else {
+//            if (trenutnoVidljiviMarkeri.size() > 0) {
+//                heatmapOverlay.clearTileCache();
+////                addHeatMap(pozicijeExpert);
+//                for (Marker mark : trenutnoVidljiviMarkeri) {
+//                    mark.remove();
+//                }
+//                trenutnoVidljiviMarkeri.clear();
+//            } else {
+//                if (pozicijeExpert.size() == 0) return;
+//                heatmapProvider.setWeightedData(pozicijeExpert);
+//                heatmapOverlay.clearTileCache();
+//            }
+//        }
     }
 }
