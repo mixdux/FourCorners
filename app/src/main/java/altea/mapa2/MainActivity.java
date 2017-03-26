@@ -58,6 +58,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     GoogleApiClient mGoogleApiClient;
     final int MY_PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 300;
     Circle pinRadiusCircle;
+    LatLng lastLatLng;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -68,6 +69,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         mapFragment.getMapAsync(this);
         GoogleMapOptions options = new GoogleMapOptions();
         options.compassEnabled(false).rotateGesturesEnabled(false).tiltGesturesEnabled(false);
+        trenutnoVidljivaMesta = new ArrayList<ParkingMesto>();
         final Context currentContext = this;
         mapFragment.getView().getViewTreeObserver().addOnGlobalLayoutListener(
                 new ViewTreeObserver.OnGlobalLayoutListener() {
@@ -200,7 +202,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         int priority = LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY;
         gmsRequest.setPriority(priority);
 //        gmsRequest.setFastestInterval(request.trackingRate);
-//        gmsRequest.setInterval(request.trackingRate);
+        gmsRequest.setInterval(2000);
         int permissionCheck = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION);
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, MY_PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION);
@@ -212,14 +214,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     public void onLocationChanged(Location location) {
         if (location == null) return;
-        LatLng currentLatLng = new LatLng(location.getLatitude(), location.getLongitude());
-        CircleOptions circleOptions = new CircleOptions().center(currentLatLng);
-        circleOptions.radius(1000);
-        if (pinRadiusCircle != null) pinRadiusCircle.remove();
-        pinRadiusCircle = currentMap.addCircle(circleOptions);
-        pinRadiusCircle.setFillColor(Color.argb(50, 86, 111, 251));
-        pinRadiusCircle.setStrokeWidth(2);
-        pinRadiusCircle.setStrokeColor(Color.argb(50, 26, 41, 240));
+        lastLatLng = new LatLng(location.getLatitude(), location.getLongitude());
+        pinCircleUpdate(lastLatLng, 3000);
+
     }
 
     @Override
@@ -244,6 +241,27 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 return;
             }
         }
+    }
+
+    public void pinCircleUpdate(LatLng latestLocation, float circleRadius){
+        CircleOptions circleOptions = new CircleOptions().center(latestLocation);
+        circleOptions.radius(circleRadius);
+        if (pinRadiusCircle != null) pinRadiusCircle.remove();
+        pinRadiusCircle = currentMap.addCircle(circleOptions);
+        pinRadiusCircle.setFillColor(Color.argb(50, 86, 111, 251));
+        pinRadiusCircle.setStrokeWidth(2);
+        pinRadiusCircle.setStrokeColor(Color.argb(50, 26, 41, 240));
+
+//        for (ParkingMesto mesto : mesta) {
+//            Location ne = new Location("point A");
+//            ne.setLatitude(mesto.oblast.northeast.latitude);
+//            ne.setLongitude(mesto.oblast.northeast.longitude);
+//            Location sw = new Location("point B");
+//            sw.setLatitude(mesto.oblast.southwest.latitude);
+//            sw.setLongitude(mesto.oblast.southwest.longitude);
+//            pozicijeExpert.add(new WeightedLatLng(mesto.pozicija, ne.distanceTo(sw)));
+////                            circleOptions.radius(ne.distanceTo(sw) / 2);
+//        }
     }
 
     @Override
