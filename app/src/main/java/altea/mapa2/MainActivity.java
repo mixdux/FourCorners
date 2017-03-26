@@ -16,12 +16,16 @@ import android.view.ViewTreeObserver;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.location.LocationListener;
+import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.GoogleMapOptions;
 import com.google.android.gms.maps.MapFragment;
 import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.model.Circle;
+import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Marker;
@@ -41,7 +45,7 @@ import java.util.List;
 
 import static altea.mapa2.R.id.map;
 
-public class MainActivity extends AppCompatActivity implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, GoogleMap.OnCameraIdleListener {
+public class MainActivity extends AppCompatActivity implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, GoogleMap.OnCameraIdleListener, LocationListener {
 
     List<ParkingMesto> mesta;
     List<ParkingMesto> trenutnoVidljivaMesta;
@@ -52,7 +56,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     HeatmapTileProvider heatmapProvider;
     int initialZoomPaddingPercent = 20;
     GoogleApiClient mGoogleApiClient;
-    final int  MY_PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 300;
+    final int MY_PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 300;
+    Circle pinRadiusCircle;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -72,7 +77,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                         List<String[]> pinovi = readCsv(currentContext);
                         mesta = new ArrayList<ParkingMesto>();
                         pozicije = new ArrayList<LatLng>();
-                        List <WeightedLatLng> pozicijeExpert = new ArrayList<WeightedLatLng>();
+                        List<WeightedLatLng> pozicijeExpert = new ArrayList<WeightedLatLng>();
                         LatLngBounds.Builder builder = new LatLngBounds.Builder();
                         for (String[] pin : pinovi) {
                             ParkingMesto mesto = new ParkingMesto(pin);
@@ -190,7 +195,31 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     @Override
     public void onConnected(@Nullable Bundle bundle) {
+        //        if (mRequestingLocationUpdates) {
+        LocationRequest gmsRequest = new LocationRequest();
+        int priority = LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY;
+        gmsRequest.setPriority(priority);
+//        gmsRequest.setFastestInterval(request.trackingRate);
+//        gmsRequest.setInterval(request.trackingRate);
+        int permissionCheck = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION);
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, MY_PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION);
+        }
+        LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, gmsRequest, this);
+        //        }
+    }
 
+    @Override
+    public void onLocationChanged(Location location) {
+        if (location == null) return;
+        LatLng currentLatLng = new LatLng(location.getLatitude(), location.getLongitude());
+        CircleOptions circleOptions = new CircleOptions().center(currentLatLng);
+        circleOptions.radius(1000);
+        if (pinRadiusCircle != null) pinRadiusCircle.remove();
+        pinRadiusCircle = currentMap.addCircle(circleOptions);
+        pinRadiusCircle.setFillColor(Color.argb(50, 86, 111, 251));
+        pinRadiusCircle.setStrokeWidth(2);
+        pinRadiusCircle.setStrokeColor(Color.argb(50, 26, 41, 240));
     }
 
     @Override
@@ -220,7 +249,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     public void onCameraIdle() {
         trenutnoVidljivaMesta = new ArrayList<ParkingMesto>();
-        List <WeightedLatLng> pozicijeExpert = new ArrayList<WeightedLatLng>();
+        List<WeightedLatLng> pozicijeExpert = new ArrayList<WeightedLatLng>();
         LatLngBounds currentBounds = currentMap.getProjection().getVisibleRegion().latLngBounds;
         float zoomLvl = currentMap.getCameraPosition().zoom;
         for (ParkingMesto mesto : mesta) {
@@ -239,17 +268,18 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 }
             }
         }
-        if (zoomLvl>=16) {
+        if (zoomLvl >= 16) {
             heatmapOverlay.remove();
         } else {
             if (trenutnoVidljiviMarkeri.size() > 0) {
                 heatmapOverlay.clearTileCache();
                 addHeatMap(pozicijeExpert);
-                for (Marker mark : trenutnoVidljiviMarkeri){
+                for (Marker mark : trenutnoVidljiviMarkeri) {
                     mark.remove();
                 }
                 trenutnoVidljiviMarkeri.clear();
             } else {
+                if (pozicijeExpert.size() == 0) return;
                 heatmapProvider.setWeightedData(pozicijeExpert);
                 heatmapOverlay.clearTileCache();
             }
